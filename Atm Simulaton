@@ -1,0 +1,383 @@
+using System;
+using System.Drawing;
+using System.IO;
+using System.Text.Json;
+using System.Windows.Forms;
+using System.Collections.Generic;
+
+namespace ATMApplication
+{
+    public class Account
+    {
+        public string AccountNumber { get; set; } = "123456";
+        public string PIN { get; set; } = "1234";
+        public decimal Balance { get; set; } = 5000;
+
+        public List<string> Transactions { get; set; } = new List<string>();
+    }
+
+    public class ATMForm : Form
+    {
+        Account account;
+        string filePath = Path.Combine(
+            AppDomain.CurrentDomain.BaseDirectory,
+            "atm_data.json"
+        );
+
+        TextBox accountBox;
+        TextBox pinBox;
+        Label messageLabel;
+
+        public ATMForm()
+        {
+            LoadData();
+
+            Text = "ATM Banking System";
+            Size = new Size(550, 500);
+            StartPosition = FormStartPosition.CenterScreen;
+            BackColor = Color.FromArgb(235, 240, 248);
+
+            ShowLogin();
+        }
+
+        // SAVE ACCOUNT DATA
+        void SaveData()
+        {
+            string json = JsonSerializer.Serialize(
+                account,
+                new JsonSerializerOptions { WriteIndented = true }
+            );
+
+            File.WriteAllText(filePath, json);
+        }
+
+        // LOAD ACCOUNT DATA
+        void LoadData()
+        {
+            if (File.Exists(filePath))
+            {
+                string json = File.ReadAllText(filePath);
+
+                account = JsonSerializer.Deserialize<Account>(json)
+                          ?? new Account();
+            }
+            else
+            {
+                account = new Account();
+                SaveData();
+            }
+        }
+
+        // CREATE BUTTON
+        Button CreateButton(string text, int x, int y)
+        {
+            Button btn = new Button();
+
+            btn.Text = text;
+            btn.Size = new Size(180, 45);
+            btn.Location = new Point(x, y);
+            btn.BackColor = Color.FromArgb(20, 45, 85);
+            btn.ForeColor = Color.White;
+            btn.Font = new Font("Arial", 10, FontStyle.Bold);
+            btn.FlatStyle = FlatStyle.Flat;
+
+            return btn;
+        }
+
+        // CREATE LABEL
+        Label CreateLabel(string text, int x, int y)
+        {
+            Label lbl = new Label();
+
+            lbl.Text = text;
+            lbl.Location = new Point(x, y);
+            lbl.AutoSize = true;
+            lbl.Font = new Font("Arial", 11, FontStyle.Bold);
+
+            return lbl;
+        }
+
+        // CLEAR FORM
+        void ClearForm()
+        {
+            Controls.Clear();
+        }
+
+        // LOGIN SCREEN
+        void ShowLogin()
+        {
+            ClearForm();
+
+            Label title = CreateLabel(
+                "WELCOME TO ATM BANKING",
+                130, 40
+            );
+
+            title.Font = new Font("Arial", 16, FontStyle.Bold);
+            Controls.Add(title);
+
+            Controls.Add(CreateLabel("Account Number:", 80, 130));
+
+            accountBox = new TextBox();
+            accountBox.Location = new Point(230, 125);
+            accountBox.Width = 200;
+            Controls.Add(accountBox);
+
+            Controls.Add(CreateLabel("PIN:", 80, 190));
+
+            pinBox = new TextBox();
+            pinBox.Location = new Point(230, 185);
+            pinBox.Width = 200;
+            pinBox.PasswordChar = '*';
+            Controls.Add(pinBox);
+
+            Button login = CreateButton("LOGIN", 180, 250);
+
+            login.Click += (s, e) =>
+            {
+                if (accountBox.Text == account.AccountNumber &&
+                    pinBox.Text == account.PIN)
+                {
+                    ShowDashboard();
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "Invalid account number or PIN!"
+                    );
+                }
+            };
+
+            Controls.Add(login);
+
+            messageLabel = CreateLabel(
+                "Demo Account: 123456 | PIN: 1234",
+                115, 330
+            );
+
+            messageLabel.Font = new Font("Arial", 9);
+            Controls.Add(messageLabel);
+        }
+
+        // MAIN DASHBOARD
+        void ShowDashboard()
+        {
+            ClearForm();
+
+            Label title = CreateLabel(
+                "ATM MAIN MENU",
+                190, 30
+            );
+
+            title.Font = new Font("Arial", 17, FontStyle.Bold);
+            Controls.Add(title);
+
+            Label welcome = CreateLabel(
+                "Welcome! Account: " + account.AccountNumber,
+                130, 85
+            );
+
+            Controls.Add(welcome);
+
+            Button balance = CreateButton(
+                "CHECK BALANCE", 60, 140
+            );
+
+            balance.Click += (s, e) =>
+            {
+                MessageBox.Show(
+                    "Your available balance is KSh "
+                    + account.Balance.ToString("N2"),
+                    "Account Balance"
+                );
+            };
+
+            Controls.Add(balance);
+
+            Button deposit = CreateButton(
+                "DEPOSIT MONEY", 290, 140
+            );
+
+            deposit.Click += (s, e) => DepositMoney();
+
+            Controls.Add(deposit);
+
+            Button withdraw = CreateButton(
+                "WITHDRAW MONEY", 60, 210
+            );
+
+            withdraw.Click += (s, e) => WithdrawMoney();
+
+            Controls.Add(withdraw);
+
+            Button history = CreateButton(
+                "TRANSACTION HISTORY", 290, 210
+            );
+
+            history.Click += (s, e) => ShowHistory();
+
+            Controls.Add(history);
+
+            Button changePin = CreateButton(
+                "CHANGE PIN", 60, 280
+            );
+
+            changePin.Click += (s, e) => ChangePIN();
+
+            Controls.Add(changePin);
+
+            Button logout = CreateButton(
+                "LOGOUT", 290, 280
+            );
+
+            logout.Click += (s, e) => ShowLogin();
+
+            Controls.Add(logout);
+        }
+
+        // DEPOSIT MONEY
+        void DepositMoney()
+        {
+            string input = Microsoft.VisualBasic.Interaction.InputBox(
+                "Enter amount to deposit:",
+                "Cash Deposit"
+            );
+
+            if (decimal.TryParse(input, out decimal amount)
+                && amount > 0)
+            {
+                account.Balance += amount;
+
+                account.Transactions.Add(
+                    DateTime.Now + " - Deposit: KSh "
+                    + amount.ToString("N2")
+                );
+
+                SaveData();
+
+                MessageBox.Show(
+                    "Deposit successful!\nNew Balance: KSh "
+                    + account.Balance.ToString("N2")
+                );
+            }
+            else
+            {
+                MessageBox.Show("Please enter a valid amount.");
+            }
+        }
+
+        // WITHDRAW MONEY
+        void WithdrawMoney()
+        {
+            string input = Microsoft.VisualBasic.Interaction.InputBox(
+                "Enter amount to withdraw:",
+                "Cash Withdrawal"
+            );
+
+            if (decimal.TryParse(input, out decimal amount)
+                && amount > 0)
+            {
+                if (amount <= account.Balance)
+                {
+                    account.Balance -= amount;
+
+                    account.Transactions.Add(
+                        DateTime.Now + " - Withdrawal: KSh "
+                        + amount.ToString("N2")
+                    );
+
+                    SaveData();
+
+                    MessageBox.Show(
+                        "Withdrawal successful!\nRemaining Balance: KSh "
+                        + account.Balance.ToString("N2")
+                    );
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "Insufficient funds!"
+                    );
+                }
+            }
+            else
+            {
+                MessageBox.Show("Please enter a valid amount.");
+            }
+        }
+
+        // TRANSACTION HISTORY
+        void ShowHistory()
+        {
+            string history = "TRANSACTION HISTORY\n\n";
+
+            if (account.Transactions.Count == 0)
+            {
+                history += "No transactions available.";
+            }
+            else
+            {
+                foreach (string transaction in account.Transactions)
+                {
+                    history += transaction + "\n\n";
+                }
+            }
+
+            MessageBox.Show(
+                history,
+                "Transaction History"
+            );
+        }
+
+        // CHANGE PIN
+        void ChangePIN()
+        {
+            string oldPin =
+                Microsoft.VisualBasic.Interaction.InputBox(
+                    "Enter your current PIN:",
+                    "Change PIN"
+                );
+
+            if (oldPin != account.PIN)
+            {
+                MessageBox.Show("Incorrect current PIN!");
+                return;
+            }
+
+            string newPin =
+                Microsoft.VisualBasic.Interaction.InputBox(
+                    "Enter your new 4-digit PIN:",
+                    "Change PIN"
+                );
+
+            if (newPin.Length == 4 &&
+                int.TryParse(newPin, out _))
+            {
+                account.PIN = newPin;
+
+                SaveData();
+
+                MessageBox.Show(
+                    "PIN changed successfully!"
+                );
+            }
+            else
+            {
+                MessageBox.Show(
+                    "PIN must contain exactly 4 digits."
+                );
+            }
+        }
+    }
+
+    internal static class Program
+    {
+        [STAThread]
+        static void Main()
+        {
+            ApplicationConfiguration.Initialize();
+
+            Application.Run(new ATMForm());
+        }
+    }
+}
